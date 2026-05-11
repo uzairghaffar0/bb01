@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -11,14 +12,19 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage>
     with SingleTickerProviderStateMixin {
   final TextEditingController emailController = TextEditingController();
+
   final TextEditingController passwordController = TextEditingController();
+
   final TextEditingController nameController = TextEditingController();
+
+  final TextEditingController babyNameController = TextEditingController();
+
   final TextEditingController confirmPasswordController =
       TextEditingController();
+
   bool isLoading = false;
   bool isLoginMode = true;
 
-  // Animation controller for the initial load sequence
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -26,15 +32,26 @@ class _LoginPageState extends State<LoginPage>
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
 
-    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-            CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeIn,
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
     _controller.forward();
   }
@@ -42,22 +59,31 @@ class _LoginPageState extends State<LoginPage>
   @override
   void dispose() {
     _controller.dispose();
+
     emailController.dispose();
     passwordController.dispose();
     nameController.dispose();
+    babyNameController.dispose();
     confirmPasswordController.dispose();
+
     super.dispose();
   }
 
   void _showSnack(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content:
-            Text(message, style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(
+          message,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
       ),
     );
   }
@@ -77,6 +103,15 @@ class _LoginPageState extends State<LoginPage>
       if (nameController.text.trim().isEmpty) {
         _showSnack(
           'Please enter your name',
+          Colors.redAccent,
+        );
+
+        return;
+      }
+
+      if (babyNameController.text.trim().isEmpty) {
+        _showSnack(
+          'Please enter baby name',
           Colors.redAccent,
         );
 
@@ -122,6 +157,17 @@ class _LoginPageState extends State<LoginPage>
           password: passwordController.text.trim(),
         );
 
+        // SAVE USER DATA
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
+          'name': nameController.text.trim(),
+          'babyName': babyNameController.text.trim(),
+          'email': emailController.text.trim(),
+          'createdAt': Timestamp.now(),
+        });
+
         print(userCredential.user?.uid);
         print(userCredential.user?.email);
 
@@ -132,6 +178,10 @@ class _LoginPageState extends State<LoginPage>
 
         setState(() {
           isLoginMode = true;
+
+          nameController.clear();
+          babyNameController.clear();
+          confirmPasswordController.clear();
         });
       }
     } on FirebaseAuthException catch (e) {
@@ -159,12 +209,15 @@ class _LoginPageState extends State<LoginPage>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        // Subtle gradient background
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFE0F7FA), Color(0xFFF4F6F9), Colors.white],
+            colors: [
+              Color(0xFFE0F7FA),
+              Color(0xFFF4F6F9),
+              Colors.white,
+            ],
           ),
         ),
         child: SafeArea(
@@ -174,7 +227,9 @@ class _LoginPageState extends State<LoginPage>
               position: _slideAnimation,
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30.0,
+                  ),
                   child: Column(
                     children: [
                       _buildHeader(),
@@ -229,7 +284,10 @@ class _LoginPageState extends State<LoginPage>
           isLoginMode
               ? 'Gently monitoring your little one'
               : 'Join us to monitor your baby',
-          style: TextStyle(color: Colors.blueGrey, fontSize: 16),
+          style: const TextStyle(
+            color: Colors.blueGrey,
+            fontSize: 16,
+          ),
         ),
       ],
     );
@@ -258,21 +316,37 @@ class _LoginPageState extends State<LoginPage>
               label: 'Full Name',
               icon: Icons.person_outline_rounded,
             ),
+
           if (!isLoginMode) const SizedBox(height: 15),
+
+          // BABY NAME FIELD
+          if (!isLoginMode)
+            _buildTextField(
+              controller: babyNameController,
+              label: 'Baby Name',
+              icon: Icons.child_care,
+            ),
+
+          if (!isLoginMode) const SizedBox(height: 15),
+
           _buildTextField(
             controller: emailController,
             label: 'Email Address',
             icon: Icons.alternate_email_rounded,
             type: TextInputType.emailAddress,
           ),
+
           const SizedBox(height: 15),
+
           _buildTextField(
             controller: passwordController,
             label: 'Password',
             icon: Icons.lock_outline_rounded,
             isPassword: true,
           ),
+
           if (!isLoginMode) const SizedBox(height: 15),
+
           if (!isLoginMode)
             _buildTextField(
               controller: confirmPasswordController,
@@ -280,9 +354,13 @@ class _LoginPageState extends State<LoginPage>
               icon: Icons.lock_outline_rounded,
               isPassword: true,
             ),
+
           const SizedBox(height: 30),
+
           _buildLoginButton(),
+
           const SizedBox(height: 20),
+
           _buildToggleModeText(),
         ],
       ),
@@ -302,17 +380,27 @@ class _LoginPageState extends State<LoginPage>
       keyboardType: type,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, size: 22, color: Colors.cyan.shade700),
+        prefixIcon: Icon(
+          icon,
+          size: 22,
+          color: Colors.cyan.shade700,
+        ),
         filled: true,
         fillColor: Colors.grey.shade50,
-        labelStyle: const TextStyle(color: Colors.blueGrey, fontSize: 14),
+        labelStyle: const TextStyle(
+          color: Colors.blueGrey,
+          fontSize: 14,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
           borderSide: BorderSide(color: Colors.grey.shade200),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: Colors.cyan, width: 2),
+          borderSide: const BorderSide(
+            color: Colors.cyan,
+            width: 2,
+          ),
         ),
       ),
     );
@@ -324,7 +412,9 @@ class _LoginPageState extends State<LoginPage>
       child: isLoading
           ? const Padding(
               padding: EdgeInsets.symmetric(vertical: 10),
-              child: CircularProgressIndicator(color: Colors.cyan),
+              child: CircularProgressIndicator(
+                color: Colors.cyan,
+              ),
             )
           : SizedBox(
               width: double.infinity,
@@ -341,10 +431,11 @@ class _LoginPageState extends State<LoginPage>
                 ),
                 child: Text(
                   isLoginMode ? 'SIGN IN' : 'SIGN UP',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.1,
+                  ),
                 ),
               ),
             ),
@@ -356,8 +447,9 @@ class _LoginPageState extends State<LoginPage>
       onTap: () {
         setState(() {
           isLoginMode = !isLoginMode;
-          // Clear fields when switching modes
+
           nameController.clear();
+          babyNameController.clear();
           confirmPasswordController.clear();
           emailController.clear();
           passwordController.clear();

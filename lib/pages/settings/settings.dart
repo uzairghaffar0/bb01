@@ -3,6 +3,8 @@ import '../../widgets/navigation.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme_provider.dart';
 import 'package:smart_baby_band/pages/login/login.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -20,8 +22,34 @@ class _SettingsPageState extends State<SettingsPage> {
   String _distanceUnit = 'km';
   String _selectedLanguage = 'English';
   double _alertVolume = 0.8;
+  String userName = "Loading...";
+  String userEmail = "";
+  String babyName = "";
+
+  Future<void> getUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      setState(() {
+        userName = doc['name'];
+        userEmail = doc['email'];
+        babyName = doc['babyName'];
+      });
+    }
+  }
 
   @override
+  void initState() {
+    super.initState();
+
+    getUserData(); // geting user data from firebase and setting it to the state variables to show in the profile section of settings page
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5FBFF),
@@ -397,7 +425,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'John & Sarah',
+                    'userName',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -406,7 +434,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    'Parents of Emma',
+                    'Parents of $babyName',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
