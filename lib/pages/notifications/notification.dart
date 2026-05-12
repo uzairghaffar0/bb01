@@ -6,9 +6,8 @@ class NotificationsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5FBFF),
-
       // ✅ Main body
       body: SafeArea(
         child: Center(
@@ -16,12 +15,11 @@ class NotificationsPage extends StatelessWidget {
             width: 250,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  // ignore: deprecated_member_use
-                  color: Colors.black.withOpacity(0.05),
+                  color: theme.shadowColor.withValues(alpha: 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -30,39 +28,39 @@ class NotificationsPage extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'Emergency Alert',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 15),
                 Container(
                   height: 70,
                   width: 70,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFE4E4),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.favorite_rounded,
-                    color: Color(0xFFFF6B6B),
+                    color: Colors.redAccent,
                     size: 40,
                   ),
                 ),
                 const SizedBox(height: 15),
-                const Text(
+                Text(
                   'Heart rate',
-                  style: TextStyle(fontSize: 16, color: Colors.black54),
+                  style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurfaceVariant),
                 ),
-                const Text(
+                Text(
                   '150 bpm',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 const Text(
@@ -86,8 +84,8 @@ class NotificationsPage extends StatelessWidget {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF9EE8FF),
-                      foregroundColor: Colors.black,
+                      backgroundColor: theme.primaryColor,
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),

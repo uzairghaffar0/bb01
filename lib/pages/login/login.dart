@@ -91,39 +91,21 @@ class _LoginPageState extends State<LoginPage>
   Future<void> loginUser() async {
     if (emailController.text.trim().isEmpty ||
         passwordController.text.trim().isEmpty) {
-      _showSnack(
-        'Please enter your credentials',
-        Colors.redAccent,
-      );
-
+      _showSnack('Please enter your credentials', Colors.redAccent);
       return;
     }
 
     if (!isLoginMode) {
       if (nameController.text.trim().isEmpty) {
-        _showSnack(
-          'Please enter your name',
-          Colors.redAccent,
-        );
-
+        _showSnack('Please enter your name', Colors.redAccent);
         return;
       }
-
       if (babyNameController.text.trim().isEmpty) {
-        _showSnack(
-          'Please enter baby name',
-          Colors.redAccent,
-        );
-
+        _showSnack('Please enter baby name', Colors.redAccent);
         return;
       }
-
       if (passwordController.text != confirmPasswordController.text) {
-        _showSnack(
-          'Passwords do not match',
-          Colors.redAccent,
-        );
-
+        _showSnack('Passwords do not match', Colors.redAccent);
         return;
       }
     }
@@ -132,32 +114,22 @@ class _LoginPageState extends State<LoginPage>
 
     try {
       if (isLoginMode) {
-        // LOGIN USER
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
 
-        _showSnack(
-          'Login Successful',
-          Colors.green,
-        );
+        _showSnack('Login Successful', Colors.green);
 
         if (!mounted) return;
-
-        Navigator.pushReplacementNamed(
-          context,
-          '/dashboard',
-        );
+        Navigator.pushReplacementNamed(context, '/dashboard');
       } else {
-        // CREATE USER
         UserCredential userCredential =
             await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
 
-        // SAVE USER DATA
         await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredential.user!.uid)
@@ -168,40 +140,23 @@ class _LoginPageState extends State<LoginPage>
           'createdAt': Timestamp.now(),
         });
 
-        print(userCredential.user?.uid);
-        print(userCredential.user?.email);
-
-        _showSnack(
-          'Account Created Successfully',
-          Colors.green,
-        );
+        _showSnack('Account Created Successfully', Colors.green);
 
         setState(() {
           isLoginMode = true;
-
           nameController.clear();
           babyNameController.clear();
           confirmPasswordController.clear();
         });
       }
     } on FirebaseAuthException catch (e) {
-      _showSnack(
-        e.message ?? 'Authentication Error',
-        Colors.red,
-      );
-
-      print(e.code);
+      _showSnack(e.message ?? 'Authentication Error', Colors.red);
     } catch (e) {
-      _showSnack(
-        e.toString(),
-        Colors.red,
-      );
-
-      print(e.toString());
-    }
-
-    if (mounted) {
-      setState(() => isLoading = false);
+      _showSnack(e.toString(), Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -209,17 +164,7 @@ class _LoginPageState extends State<LoginPage>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFE0F7FA),
-              Color(0xFFF4F6F9),
-              Colors.white,
-            ],
-          ),
-        ),
+        color: Theme.of(context).scaffoldBackgroundColor,
         child: SafeArea(
           child: FadeTransition(
             opacity: _fadeAnimation,
@@ -232,9 +177,9 @@ class _LoginPageState extends State<LoginPage>
                   ),
                   child: Column(
                     children: [
-                      _buildHeader(),
+                      _buildHeader(context),
                       const SizedBox(height: 40),
-                      _buildLoginForm(),
+                      _buildLoginForm(context),
                     ],
                   ),
                 ),
@@ -246,7 +191,7 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Column(
       children: [
         Hero(
@@ -255,10 +200,10 @@ class _LoginPageState extends State<LoginPage>
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.cyan.withOpacity(0.2),
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
                   blurRadius: 30,
                   spreadRadius: 5,
                 )
@@ -273,10 +218,10 @@ class _LoginPageState extends State<LoginPage>
         const SizedBox(height: 25),
         Text(
           isLoginMode ? 'Welcome Back' : 'Create Account',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w900,
-            color: Color(0xFF263238),
+            color: Theme.of(context).colorScheme.onSurface,
             letterSpacing: -0.5,
           ),
         ),
@@ -284,8 +229,8 @@ class _LoginPageState extends State<LoginPage>
           isLoginMode
               ? 'Gently monitoring your little one'
               : 'Join us to monitor your baby',
-          style: const TextStyle(
-            color: Colors.blueGrey,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 16,
           ),
         ),
@@ -293,16 +238,17 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildLoginForm() {
+  Widget _buildLoginForm(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: Theme.of(context).cardColor.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white),
+        border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Theme.of(context).shadowColor.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           )
@@ -312,6 +258,7 @@ class _LoginPageState extends State<LoginPage>
         children: [
           if (!isLoginMode)
             _buildTextField(
+              context: context,
               controller: nameController,
               label: 'Full Name',
               icon: Icons.person_outline_rounded,
@@ -322,6 +269,7 @@ class _LoginPageState extends State<LoginPage>
           // BABY NAME FIELD
           if (!isLoginMode)
             _buildTextField(
+              context: context,
               controller: babyNameController,
               label: 'Baby Name',
               icon: Icons.child_care,
@@ -330,6 +278,7 @@ class _LoginPageState extends State<LoginPage>
           if (!isLoginMode) const SizedBox(height: 15),
 
           _buildTextField(
+            context: context,
             controller: emailController,
             label: 'Email Address',
             icon: Icons.alternate_email_rounded,
@@ -339,6 +288,7 @@ class _LoginPageState extends State<LoginPage>
           const SizedBox(height: 15),
 
           _buildTextField(
+            context: context,
             controller: passwordController,
             label: 'Password',
             icon: Icons.lock_outline_rounded,
@@ -349,6 +299,7 @@ class _LoginPageState extends State<LoginPage>
 
           if (!isLoginMode)
             _buildTextField(
+              context: context,
               controller: confirmPasswordController,
               label: 'Confirm Password',
               icon: Icons.lock_outline_rounded,
@@ -357,17 +308,18 @@ class _LoginPageState extends State<LoginPage>
 
           const SizedBox(height: 30),
 
-          _buildLoginButton(),
+          _buildLoginButton(context),
 
           const SizedBox(height: 20),
 
-          _buildToggleModeText(),
+          _buildToggleModeText(context),
         ],
       ),
     );
   }
 
   Widget _buildTextField({
+    required BuildContext context,
     required TextEditingController controller,
     required String label,
     required IconData icon,
@@ -383,22 +335,23 @@ class _LoginPageState extends State<LoginPage>
         prefixIcon: Icon(
           icon,
           size: 22,
-          color: Colors.cyan.shade700,
+          color: Theme.of(context).primaryColor,
         ),
         filled: true,
-        fillColor: Colors.grey.shade50,
-        labelStyle: const TextStyle(
-          color: Colors.blueGrey,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           fontSize: 14,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Colors.grey.shade200),
+          borderSide: BorderSide(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(
-            color: Colors.cyan,
+          borderSide: BorderSide(
+            color: Theme.of(context).primaryColor,
             width: 2,
           ),
         ),
@@ -406,14 +359,14 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildLoginButton() {
+  Widget _buildLoginButton(BuildContext context) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       child: isLoading
-          ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
               child: CircularProgressIndicator(
-                color: Colors.cyan,
+                color: Theme.of(context).primaryColor,
               ),
             )
           : SizedBox(
@@ -422,7 +375,7 @@ class _LoginPageState extends State<LoginPage>
               child: ElevatedButton(
                 onPressed: loginUser,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.cyan.shade600,
+                  backgroundColor: Theme.of(context).primaryColor,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -442,7 +395,7 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildToggleModeText() {
+  Widget _buildToggleModeText(BuildContext context) {
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -460,7 +413,7 @@ class _LoginPageState extends State<LoginPage>
             ? "Don't have an account? Sign Up"
             : "Already have an account? Sign In",
         style: TextStyle(
-          color: Colors.cyan.shade600,
+          color: Theme.of(context).primaryColor,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/navigation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -8,19 +10,51 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
+////////////////////////////////////////////////////////////////////////
 class _DashboardPageState extends State<DashboardPage> {
-  Widget _buildDashboardUI() {
+  String babyName = ""; // baby name to display on dashboard
+  bool isLoading = true;
+  @override
+  void initState() {
+    super.initState();
+
+    getUserData();
+  }
+
+  Future<void> getUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        setState(() {
+          babyName = snapshot['babyName'];
+
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print(e.toString());
+    }
+  } //////////////////////////////////////////////////////
+
+  Widget _buildDashboardUI(BuildContext context) {
+    final theme = Theme.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Text(
+          Text(
             'Dashboard',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 10),
@@ -28,25 +62,26 @@ class _DashboardPageState extends State<DashboardPage> {
           // Baby info
           Column(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 45,
-                backgroundColor: Colors.white,
-                backgroundImage: AssetImage(
+                backgroundColor: theme.cardColor,
+                backgroundImage: const AssetImage(
                   'images/baby.png',
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Emma',
+              Text(
+                'babyname',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
-              const Text(
+              Text(
                 'Last sync: 5 minutes ago',
-                style: TextStyle(color: Colors.grey, fontSize: 14),
+                style: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
               ),
             ],
           ),
@@ -57,11 +92,11 @@ class _DashboardPageState extends State<DashboardPage> {
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: theme.shadowColor.withValues(alpha: 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -81,24 +116,28 @@ class _DashboardPageState extends State<DashboardPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _healthMetricCard(
+                      context,
                       Icons.thermostat,
                       'Temp',
                       Colors.orange.shade400,
                       Colors.orange.shade50,
                     ),
                     _healthMetricCard(
+                      context,
                       Icons.bedtime,
                       'Sleep',
                       Colors.blue.shade400,
                       Colors.blue.shade50,
                     ),
                     _healthMetricCard(
+                      context,
                       Icons.favorite,
                       'Heart Rate',
                       Colors.red.shade400,
                       Colors.red.shade50,
                     ),
                     _healthMetricCard(
+                      context,
                       Icons.record_voice_over,
                       'Cry',
                       Colors.purple.shade400,
@@ -116,14 +155,14 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 10),
                 Column(
                   children: [
-                    _latestScanItem('Temperature', '36.8°C', '2 min ago',
-                        Colors.orange.shade400),
-                    _latestScanItem('Heart Rate', '128 BPM', '5 min ago',
-                        Colors.red.shade400),
-                    _latestScanItem('Sleep', 'Sleeping', '10 min ago',
+                    _latestScanItem(context, 'Temperature', '36.8°C',
+                        '2 min ago', Colors.orange.shade400),
+                    _latestScanItem(context, 'Heart Rate', '128 BPM',
+                        '5 min ago', Colors.red.shade400),
+                    _latestScanItem(context, 'Sleep', 'Sleeping', '10 min ago',
                         Colors.blue.shade400),
-                    _latestScanItem('Cry Analysis', 'No crying', '15 min ago',
-                        Colors.purple.shade400),
+                    _latestScanItem(context, 'Cry Analysis', 'No crying',
+                        '15 min ago', Colors.purple.shade400),
                   ],
                 ),
               ],
@@ -136,11 +175,11 @@ class _DashboardPageState extends State<DashboardPage> {
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: theme.shadowColor.withValues(alpha: 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -158,6 +197,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _environmentCard(
+                      context,
                       Icons.thermostat,
                       '22.5℃',
                       'Temperature',
@@ -165,6 +205,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       Colors.orange.shade50,
                     ),
                     _environmentCard(
+                      context,
                       Icons.water_drop,
                       '150tm',
                       'Humidity',
@@ -183,10 +224,10 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 10),
                 Column(
                   children: [
-                    _latestScanItem('Room Temp', '22.5℃', '1 min ago',
+                    _latestScanItem(context, 'Room Temp', '22.5℃', '1 min ago',
                         Colors.orange.shade400),
-                    _latestScanItem(
-                        'Humidity', '65%', '1 min ago', Colors.blue.shade400),
+                    _latestScanItem(context, 'Humidity', '65%', '1 min ago',
+                        Colors.blue.shade400),
                   ],
                 ),
               ],
@@ -199,6 +240,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   // Helper widget for health metrics with colorful icons
   static Widget _healthMetricCard(
+    BuildContext context,
     IconData icon,
     String label,
     Color iconColor,
@@ -211,7 +253,10 @@ class _DashboardPageState extends State<DashboardPage> {
           width: 70,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: bgColor,
+            // Use darker background in dark mode, or keep tinted colors but apply opacity
+            color: Theme.of(context).brightness == Brightness.dark
+                ? iconColor.withValues(alpha: 0.15)
+                : bgColor,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
@@ -229,7 +274,7 @@ class _DashboardPageState extends State<DashboardPage> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Colors.grey.shade700,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -238,17 +283,21 @@ class _DashboardPageState extends State<DashboardPage> {
 
   // Helper widget for environment cards with colorful icons
   static Widget _environmentCard(
+    BuildContext context,
     IconData icon,
     String value,
     String label,
     Color iconColor,
     Color bgColor,
   ) {
+    final theme = Theme.of(context);
     return Container(
       width: 140,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: theme.brightness == Brightness.dark
+            ? iconColor.withValues(alpha: 0.15)
+            : bgColor,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -265,7 +314,7 @@ class _DashboardPageState extends State<DashboardPage> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardColor,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -283,7 +332,7 @@ class _DashboardPageState extends State<DashboardPage> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade800,
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 4),
@@ -291,7 +340,7 @@ class _DashboardPageState extends State<DashboardPage> {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey.shade600,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -300,8 +349,9 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   // Helper widget for latest scan items
-  static Widget _latestScanItem(
-      String title, String value, String time, Color color) {
+  static Widget _latestScanItem(BuildContext context, String title,
+      String value, String time, Color color) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -333,9 +383,9 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -343,9 +393,9 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           Text(
             time,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: Colors.grey,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -375,8 +425,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5FBFF),
-      body: SafeArea(child: _buildDashboardUI()),
+      body: SafeArea(child: _buildDashboardUI(context)),
       bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
   }

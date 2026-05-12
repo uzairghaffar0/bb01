@@ -13,26 +13,26 @@ class SleepPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Sleep Summary
-            _buildSleepSummary(),
+            _buildSleepSummary(context),
             const SizedBox(height: 20),
 
             // Sleep Chart
-            _buildSleepChart(),
+            _buildSleepChart(context),
             const SizedBox(height: 20),
 
             // Sleep Stages
-            _buildSleepStages(),
+            _buildSleepStages(context),
             const SizedBox(height: 20),
 
             // Sleep Statistics
-            _buildSleepStats(),
+            _buildSleepStats(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSleepSummary() {
+  Widget _buildSleepSummary(BuildContext context) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -43,11 +43,11 @@ class SleepPage extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Last Night\'s Sleep',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 5),
@@ -92,7 +92,7 @@ class SleepPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSleepChart() {
+  Widget _buildSleepChart(BuildContext context) {
     final List<FlSpot> sleepData = [
       const FlSpot(0, 0), // 9PM
       const FlSpot(1, 10), // 10PM
@@ -131,7 +131,7 @@ class SleepPage extends StatelessWidget {
                     drawVerticalLine: true,
                     getDrawingHorizontalLine: (value) {
                       return FlLine(
-                        color: Colors.grey[300]!,
+                        color: Theme.of(context).dividerColor,
                         strokeWidth: 1,
                       );
                     },
@@ -176,7 +176,7 @@ class SleepPage extends StatelessWidget {
                   ),
                   borderData: FlBorderData(
                     show: true,
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(color: Theme.of(context).dividerColor),
                   ),
                   minX: 0,
                   maxX: 10,
@@ -207,11 +207,11 @@ class SleepPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Sleep Depth', style: TextStyle(color: Colors.grey)),
-                Text('Time', style: TextStyle(color: Colors.grey)),
+                Text('Sleep Depth', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                Text('Time', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ],
@@ -220,7 +220,7 @@ class SleepPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSleepStages() {
+  Widget _buildSleepStages(BuildContext context) {
     final Map<String, Map<String, dynamic>> stages = {
       'Deep Sleep': {
         'duration': '3h 45m',
@@ -284,7 +284,7 @@ class SleepPage extends StatelessWidget {
                       const SizedBox(height: 5),
                       LinearProgressIndicator(
                         value: (entry.value['percentage'] as int) / 100,
-                        backgroundColor: Colors.grey[200],
+                        backgroundColor: Theme.of(context).dividerColor,
                         color: entry.value['color'] as Color,
                         minHeight: 6,
                         borderRadius: BorderRadius.circular(3),
@@ -300,7 +300,7 @@ class SleepPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSleepStats() {
+  Widget _buildSleepStats(BuildContext context) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -320,11 +320,11 @@ class SleepPage extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _buildStatItem(
-                    'Avg Sleep', '8.2h', Icons.nights_stay, Colors.indigo),
+                    context, 'Avg Sleep', '8.2h', Icons.nights_stay, Colors.indigo),
                 _buildStatItem(
-                    'Bed Time', '9:45 PM', Icons.schedule, Colors.blue),
+                    context, 'Bed Time', '9:45 PM', Icons.schedule, Colors.blue),
                 _buildStatItem(
-                    'Wake Time', '6:15 AM', Icons.wb_sunny, Colors.orange),
+                    context, 'Wake Time', '6:15 AM', Icons.wb_sunny, Colors.orange),
               ],
             ),
             const SizedBox(height: 15),
@@ -337,7 +337,7 @@ class SleepPage extends StatelessWidget {
             const SizedBox(height: 5),
             LinearProgressIndicator(
               value: 0.82,
-              backgroundColor: Colors.grey[200],
+              backgroundColor: Theme.of(context).dividerColor,
               color: Colors.green,
               minHeight: 8,
               borderRadius: BorderRadius.circular(4),
@@ -349,7 +349,7 @@ class SleepPage extends StatelessWidget {
   }
 
   Widget _buildStatItem(
-      String label, String value, IconData icon, Color color) {
+      BuildContext context, String label, String value, IconData icon, Color color) {
     return Column(
       children: [
         Container(
@@ -372,7 +372,7 @@ class SleepPage extends StatelessWidget {
         ),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
     );

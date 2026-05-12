@@ -13,13 +13,13 @@ class TemperaturePage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildTemperatureGauge(),
+            _buildTemperatureGauge(context),
             const SizedBox(height: 20),
-            _buildTemperatureAreaChart(),
+            _buildTemperatureAreaChart(context),
             const SizedBox(height: 20),
-            _buildTemperatureHeatMap(),
+            _buildTemperatureHeatMap(context),
             const SizedBox(height: 20),
-            _buildTemperatureStats(),
+            _buildTemperatureStats(context),
           ],
         ),
       ),
@@ -29,7 +29,7 @@ class TemperaturePage extends StatelessWidget {
   /// =========================
   /// 🔵 TEMPERATURE GAUGE
   /// =========================
-  Widget _buildTemperatureGauge() {
+  Widget _buildTemperatureGauge(BuildContext context) {
     double currentTemp = 36.8;
 
     return Card(
@@ -55,7 +55,7 @@ class TemperaturePage extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.grey[300]!,
+                        color: Theme.of(context).dividerColor,
                         width: 15,
                       ),
                     ),
@@ -85,13 +85,13 @@ class TemperaturePage extends StatelessWidget {
                     ),
                   ),
 
-                  /// Inner white circle
+                  /// Inner circle
                   Container(
                     width: 140,
                     height: 140,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -153,7 +153,7 @@ class TemperaturePage extends StatelessWidget {
   /// =========================
   /// 📈 AREA CHART
   /// =========================
-  Widget _buildTemperatureAreaChart() {
+  Widget _buildTemperatureAreaChart(BuildContext context) {
     final List<FlSpot> tempData = [
       const FlSpot(0, 36.5),
       const FlSpot(6, 36.7),
@@ -210,7 +210,7 @@ class TemperaturePage extends StatelessWidget {
   /// =========================
   /// 🔥 HEATMAP
   /// =========================
-  Widget _buildTemperatureHeatMap() {
+  Widget _buildTemperatureHeatMap(BuildContext context) {
     final data = [
       [36.5, 36.7, 36.8, 37.0, 36.9, 36.8, 36.7],
       [36.7, 36.9, 37.1, 37.0, 36.9, 36.8, 36.7],
@@ -230,10 +230,14 @@ class TemperaturePage extends StatelessWidget {
                     margin: const EdgeInsets.all(2),
                     height: 40,
                     decoration: BoxDecoration(
-                      color: _getHeatMapColor(temp),
+                      color: _getHeatMapColor(temp, context),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Center(child: Text('${temp.toStringAsFixed(1)}')),
+                    child: Center(
+                        child: Text(
+                      '${temp.toStringAsFixed(1)}',
+                      style: const TextStyle(color: Colors.black87),
+                    )),
                   ),
                 );
               }),
@@ -247,7 +251,7 @@ class TemperaturePage extends StatelessWidget {
   /// =========================
   /// 📊 STATS
   /// =========================
-  Widget _buildTemperatureStats() {
+  Widget _buildTemperatureStats(BuildContext context) {
     return Card(
       elevation: 3,
       child: const Padding(
@@ -274,11 +278,14 @@ class TemperaturePage extends StatelessWidget {
     return 'Very High';
   }
 
-  Color _getHeatMapColor(double temp) {
-    if (temp < 36.5) return Colors.blue.shade200;
-    if (temp < 36.8) return Colors.green.shade200;
-    if (temp < 37.0) return Colors.yellow.shade200;
-    if (temp < 37.2) return Colors.orange.shade200;
-    return Colors.red.shade200;
+  Color _getHeatMapColor(double temp, BuildContext context) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    double opacity = isDark ? 0.7 : 1.0;
+    
+    if (temp < 36.5) return Colors.blue.shade200.withValues(alpha: opacity);
+    if (temp < 36.8) return Colors.green.shade200.withValues(alpha: opacity);
+    if (temp < 37.0) return Colors.yellow.shade200.withValues(alpha: opacity);
+    if (temp < 37.2) return Colors.orange.shade200.withValues(alpha: opacity);
+    return Colors.red.shade200.withValues(alpha: opacity);
   }
 }

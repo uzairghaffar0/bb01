@@ -13,30 +13,31 @@ class CryPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Summary Cards
-            _buildSummaryCards(),
+            _buildSummaryCards(context),
             const SizedBox(height: 20),
 
             // Line Chart
-            _buildLineChart(),
+            _buildLineChart(context),
             const SizedBox(height: 20),
 
             // Bar Chart for Cry Reasons
-            _buildReasonChart(),
+            _buildReasonChart(context),
             const SizedBox(height: 20),
 
             // Recent Cries List
-            _buildRecentCries(),
+            _buildRecentCries(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSummaryCards() {
+  Widget _buildSummaryCards(BuildContext context) {
     return Row(
       children: [
         Expanded(
           child: _buildSummaryCard(
+            context,
             'Today\'s Cries',
             '8',
             Icons.mic,
@@ -46,6 +47,7 @@ class CryPage extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _buildSummaryCard(
+            context,
             'Avg Duration',
             '4.2 min',
             Icons.timer,
@@ -55,6 +57,7 @@ class CryPage extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _buildSummaryCard(
+            context,
             'Most Reason',
             'Hunger',
             Icons.local_dining,
@@ -66,7 +69,7 @@ class CryPage extends StatelessWidget {
   }
 
   Widget _buildSummaryCard(
-      String title, String value, IconData icon, Color color) {
+      BuildContext context, String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -90,7 +93,7 @@ class CryPage extends StatelessWidget {
           ),
           Text(
             title,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ],
@@ -98,7 +101,7 @@ class CryPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLineChart() {
+  Widget _buildLineChart(BuildContext context) {
     final List<FlSpot> cryData = [
       const FlSpot(0, 20),
       const FlSpot(2, 45),
@@ -139,13 +142,13 @@ class CryPage extends StatelessWidget {
                     drawVerticalLine: true,
                     getDrawingHorizontalLine: (value) {
                       return FlLine(
-                        color: Colors.grey[300]!,
+                        color: Theme.of(context).dividerColor,
                         strokeWidth: 1,
                       );
                     },
                     getDrawingVerticalLine: (value) {
                       return FlLine(
-                        color: Colors.grey[300]!,
+                        color: Theme.of(context).dividerColor,
                         strokeWidth: 1,
                       );
                     },
@@ -192,7 +195,7 @@ class CryPage extends StatelessWidget {
                   ),
                   borderData: FlBorderData(
                     show: true,
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(color: Theme.of(context).dividerColor),
                   ),
                   minX: 0,
                   maxX: 24,
@@ -226,8 +229,8 @@ class CryPage extends StatelessWidget {
             const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Time of Day', style: TextStyle(color: Colors.grey)),
-                Text('Cry Intensity (%)', style: TextStyle(color: Colors.grey)),
+                Text('Time of Day'),
+                Text('Cry Intensity (%)'),
               ],
             ),
           ],
@@ -236,7 +239,7 @@ class CryPage extends StatelessWidget {
     );
   }
 
-  Widget _buildReasonChart() {
+  Widget _buildReasonChart(BuildContext context) {
     final Map<String, double> reasonData = {
       'Hunger': 45,
       'Sleepy': 25,
@@ -286,7 +289,7 @@ class CryPage extends StatelessWidget {
                 BarChartData(
                   barTouchData: BarTouchData(
                     touchTooltipData: BarTouchTooltipData(
-                      tooltipBgColor: Colors.white,
+                      tooltipBgColor: Theme.of(context).cardColor,
                     ),
                   ),
                   titlesData: FlTitlesData(
@@ -329,7 +332,7 @@ class CryPage extends StatelessWidget {
                   ),
                   borderData: FlBorderData(
                     show: true,
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(color: Theme.of(context).dividerColor),
                   ),
                   barGroups: barGroups,
                   gridData: const FlGridData(show: true),
@@ -344,7 +347,7 @@ class CryPage extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentCries() {
+  Widget _buildRecentCries(BuildContext context) {
     final List<Map<String, dynamic>> recentCries = [
       {
         'time': '2:30 PM',
@@ -426,8 +429,8 @@ class CryPage extends StatelessWidget {
                             ),
                             Text(
                               'Duration: ${cry['duration']} min',
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
+                              style: TextStyle(
+                                  fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                             ),
                           ],
                         ),

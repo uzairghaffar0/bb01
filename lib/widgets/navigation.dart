@@ -28,11 +28,6 @@ class AppBottomNav extends StatelessWidget {
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: (index) => _onItemTapped(context, index),
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: const Color(0xFF3BB9FF),
-      unselectedItemColor: Colors.grey,
-      backgroundColor:
-          Theme.of(context).bottomNavigationBarTheme.backgroundColor,
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.dashboard),

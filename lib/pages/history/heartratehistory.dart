@@ -15,30 +15,30 @@ class HeartbeatPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Heart Rate with Live Animation
-            _buildHeartRateLive(),
+            _buildHeartRateLive(context),
             const SizedBox(height: 20),
 
             // Sparkline Mini Charts
-            _buildSparklineCharts(),
+            _buildSparklineCharts(context),
             const SizedBox(height: 20),
 
             // Heart Rate Distribution (Bar Chart)
-            _buildHeartRateDistribution(),
+            _buildHeartRateDistribution(context),
             const SizedBox(height: 20),
 
             // Heart Rate Zones (Pie Chart)
-            _buildHeartRateZones(),
+            _buildHeartRateZones(context),
             const SizedBox(height: 20),
 
             // Detailed Statistics
-            _buildDetailedStats(),
+            _buildDetailedStats(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeartRateLive() {
+  Widget _buildHeartRateLive(BuildContext context) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -174,9 +174,9 @@ class HeartbeatPage extends StatelessWidget {
             ),
 
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Last 10 minutes trend',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -184,7 +184,7 @@ class HeartbeatPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSparklineCharts() {
+  Widget _buildSparklineCharts(BuildContext context) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -266,7 +266,7 @@ class HeartbeatPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeartRateDistribution() {
+  Widget _buildHeartRateDistribution(BuildContext context) {
     final List<double> hrData = [
       120,
       125,
@@ -370,7 +370,7 @@ class HeartbeatPage extends StatelessWidget {
                   ),
                   borderData: FlBorderData(
                     show: true,
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(color: Theme.of(context).dividerColor),
                   ),
                   barGroups: barGroups,
                   gridData: const FlGridData(show: true),
@@ -383,9 +383,9 @@ class HeartbeatPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Shows frequency of heart rate readings at different levels',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -393,7 +393,7 @@ class HeartbeatPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeartRateZones() {
+  Widget _buildHeartRateZones(BuildContext context) {
     final List<PieChartSectionData> pieSections = [
       PieChartSectionData(
         color: Colors.green,
@@ -468,10 +468,10 @@ class HeartbeatPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildZoneLegend(
-                          'Normal Zone', '110-140 BPM', Colors.green, 70),
+                          context, 'Normal Zone', '110-140 BPM', Colors.green, 70),
                       _buildZoneLegend(
-                          'Elevated Zone', '140-150 BPM', Colors.orange, 20),
-                      _buildZoneLegend('High Zone', '150+ BPM', Colors.red, 10),
+                          context, 'Elevated Zone', '140-150 BPM', Colors.orange, 20),
+                      _buildZoneLegend(context, 'High Zone', '150+ BPM', Colors.red, 10),
                     ],
                   ),
                 ),
@@ -484,7 +484,7 @@ class HeartbeatPage extends StatelessWidget {
   }
 
   Widget _buildZoneLegend(
-      String label, String range, Color color, int percentage) {
+      BuildContext context, String label, String range, Color color, int percentage) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -505,7 +505,7 @@ class HeartbeatPage extends StatelessWidget {
                 ),
                 Text(
                   range,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -523,7 +523,7 @@ class HeartbeatPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailedStats() {
+  Widget _buildDetailedStats(BuildContext context) {
     return Card(
       elevation: 3,
       child: Padding(
