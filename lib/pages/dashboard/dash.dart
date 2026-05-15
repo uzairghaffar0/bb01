@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../widgets/navigation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -14,11 +16,28 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   String babyName = ""; // baby name to display on dashboard
   bool isLoading = true;
+
+  File? babyImage;
+  final ImagePicker picker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
 
     getUserData();
+  }
+
+  Future<void> pickBabyImage() async {
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (image != null) {
+      setState(() {
+        babyImage = File(image.path);
+      });
+    }
   }
 
   Future<void> getUserData() async {
@@ -62,16 +81,19 @@ class _DashboardPageState extends State<DashboardPage> {
           // Baby info
           Column(
             children: [
-              CircleAvatar(
-                radius: 45,
-                backgroundColor: theme.cardColor,
-                backgroundImage: const AssetImage(
-                  'images/baby.png',
+              GestureDetector(
+                onTap: pickBabyImage,
+                child: CircleAvatar(
+                  radius: 45,
+                  backgroundColor: theme.cardColor,
+                  backgroundImage: babyImage != null
+                      ? FileImage(babyImage!)
+                      : const AssetImage('images/baby.png') as ImageProvider,
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                'babyname',
+                babyName,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
@@ -111,7 +133,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
                 const SizedBox(height: 15),
 
-                // Row of 4 Health Metrics with colorful icons
+                // Row of 4 Health Metrics with data
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -119,6 +141,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       context,
                       Icons.thermostat,
                       'Temp',
+                      '36.8°C',
                       Colors.orange.shade400,
                       Colors.orange.shade50,
                     ),
@@ -126,6 +149,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       context,
                       Icons.bedtime,
                       'Sleep',
+                      '10h 30m',
                       Colors.blue.shade400,
                       Colors.blue.shade50,
                     ),
@@ -133,6 +157,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       context,
                       Icons.favorite,
                       'Heart Rate',
+                      '128 BPM',
                       Colors.red.shade400,
                       Colors.red.shade50,
                     ),
@@ -140,6 +165,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       context,
                       Icons.record_voice_over,
                       'Cry',
+                      'Quiet',
                       Colors.purple.shade400,
                       Colors.purple.shade50,
                     ),
@@ -238,22 +264,21 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // Helper widget for health metrics with colorful icons
+  // Helper widget for compact health metrics
   static Widget _healthMetricCard(
     BuildContext context,
     IconData icon,
     String label,
+    String value,
     Color iconColor,
     Color bgColor,
   ) {
     return Column(
       children: [
         Container(
-          height: 70,
-          width: 70,
-          padding: const EdgeInsets.all(10),
+          height: 60,
+          width: 60,
           decoration: BoxDecoration(
-            // Use darker background in dark mode, or keep tinted colors but apply opacity
             color: Theme.of(context).brightness == Brightness.dark
                 ? iconColor.withValues(alpha: 0.15)
                 : bgColor,
@@ -266,14 +291,21 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
-          child: Icon(icon, color: iconColor, size: 35),
+          child: Icon(icon, color: iconColor, size: 28),
         ),
         const SizedBox(height: 8),
         Text(
-          label,
+          value,
           style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
