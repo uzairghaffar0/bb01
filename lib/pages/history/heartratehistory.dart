@@ -1,44 +1,152 @@
-// ignore_for_file: deprecated_member_use
-
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HeartbeatPage extends StatelessWidget {
   const HeartbeatPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text("Not authenticated")),
+      );
+    }
+
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Heart Rate with Live Animation
-            _buildHeartRateLive(context),
-            const SizedBox(height: 20),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('heartrate_history')
+            .orderBy('timestamp', descending: true)
+            .limit(50)
+            .snapshots(),
+        builder: (context, snapshot) {
+          int latestHeartRate = 120;
+          List<int> allHeartRates = [120, 125, 128, 130, 125, 132, 128, 130, 125, 120];
+          List<Timestamp> allTimestamps = [];
 
-            // Sparkline Mini Charts
-            _buildSparklineCharts(context),
-            const SizedBox(height: 20),
+          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+            final docs = snapshot.data!.docs;
+            final latestDoc = docs.first.data() as Map<String, dynamic>;
+            latestHeartRate = (latestDoc['value'] as num?)?.toInt() ?? latestHeartRate;
 
-            // Heart Rate Distribution (Bar Chart)
-            _buildHeartRateDistribution(context),
-            const SizedBox(height: 20),
+            allHeartRates = [];
+            for (var doc in docs) {
+              final data = doc.data() as Map<String, dynamic>;
+              final val = (data['value'] as num?)?.toInt();
+              final ts = data['timestamp'] as Timestamp?;
+              if (val != null && ts != null) {
+                allHeartRates.add(val);
+                allTimestamps.add(ts);
+              }
+            }
 
-            // Heart Rate Zones (Pie Chart)
-            _buildHeartRateZones(context),
-            const SizedBox(height: 20),
+            if (allHeartRates.isEmpty) {
+              allHeartRates = [120, 125, 128, 130, 125, 132, 128, 130, 125, 120];
+            }
+          }
 
-            // Detailed Statistics
-            _buildDetailedStats(context),
-          ],
-        ),
+          // Compute Statistics
+          int minHR = allHeartRates.reduce((a, b) => a < b ? a : b);
+          int maxHR = allHeartRates.reduce((a, b) => a > b ? a : b);
+          int avgHR = (allHeartRates.reduce((a, b) => a + b) / allHeartRates.length).round();
+
+          // Calculate Zones
+          int normalCount = 0;
+          int elevatedCount = 0;
+          int highCount = 0;
+          for (var hr in allHeartRates) {
+            if (hr < 110) {
+              normalCount++; // fallback
+            } else if (hr <= 140) {
+              normalCount++;
+            } else if (hr <= 150) {
+              elevatedCount++;
+            } else {
+              highCount++;
+            }
+          }
+          double total = allHeartRates.length.toDouble();
+          double normalPct = total > 0 ? (normalCount / total) * 100 : 70;
+          double elevatedPct = total > 0 ? (elevatedCount / total) * 100 : 20;
+          double highPct = total > 0 ? (highCount / total) * 100 : 10;
+
+          // Split into time of day
+          List<int> morningHRs = [];
+          List<int> afternoonHRs = [];
+          List<int> eveningHRs = [];
+          List<int> nightHRs = [];
+
+          for (int i = 0; i < allHeartRates.length; i++) {
+            if (i < allTimestamps.length) {
+              final hour = allTimestamps[i].toDate().hour;
+              final hr = allHeartRates[i];
+              if (hour >= 6 && hour < 12) {
+                morningHRs.add(hr);
+              } else if (hour >= 12 && hour < 18) {
+                afternoonHRs.add(hr);
+              } else if (hour >= 18 && hour < 24) {
+                eveningHRs.add(hr);
+              } else {
+                nightHRs.add(hr);
+              }
+            }
+          }
+
+          // Fallbacks for Sparklines
+          if (morningHRs.isEmpty) morningHRs = [120, 125, 128, 122];
+          if (afternoonHRs.isEmpty) afternoonHRs = [130, 135, 132, 130];
+          if (eveningHRs.isEmpty) eveningHRs = [125, 128, 130, 128];
+          if (nightHRs.isEmpty) nightHRs = [120, 118, 115, 120];
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeartRateLive(context, latestHeartRate, allHeartRates),
+                const SizedBox(height: 20),
+                _buildSparklineCharts(context, morningHRs, afternoonHRs, eveningHRs, nightHRs),
+                const SizedBox(height: 20),
+                _buildHeartRateDistribution(context, allHeartRates),
+                const SizedBox(height: 20),
+                _buildHeartRateZones(context, normalPct, elevatedPct, highPct),
+                const SizedBox(height: 20),
+                _buildDetailedStats(context, minHR, maxHR, avgHR),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildHeartRateLive(BuildContext context) {
+  Widget _buildHeartRateLive(BuildContext context, int latestHeartRate, List<int> heartRates) {
+    String status = 'Normal';
+    Color statusColor = Colors.green;
+    if (latestHeartRate < 110) {
+      status = 'Low';
+      statusColor = Colors.blue;
+    } else if (latestHeartRate > 150) {
+      status = 'High';
+      statusColor = Colors.red;
+    } else if (latestHeartRate > 140) {
+      status = 'Elevated';
+      statusColor = Colors.orange;
+    }
+
+    final spots = List.generate(
+      heartRates.length > 10 ? 10 : heartRates.length,
+      (index) {
+        int hr = heartRates[heartRates.length - 1 - index];
+        return FlSpot(index.toDouble(), hr.toDouble());
+      },
+    );
+
     return Card(
       elevation: 3,
       child: Padding(
@@ -48,18 +156,11 @@ class HeartbeatPage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                Icon(
-                  Icons.favorite,
-                  color: Colors.red,
-                  size: 24,
-                ),
+                Icon(Icons.favorite, color: Colors.red, size: 24),
                 SizedBox(width: 8),
                 Text(
                   'Live Heart Rate',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -68,13 +169,12 @@ class HeartbeatPage extends StatelessWidget {
             Stack(
               alignment: Alignment.center,
               children: [
-                // Pulsing Circle Animation
                 Container(
                   width: 180,
                   height: 180,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withOpacity(0.05),
                   ),
                   child: Center(
                     child: Container(
@@ -82,7 +182,7 @@ class HeartbeatPage extends StatelessWidget {
                       height: 150,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.red.withOpacity(0.2),
+                        color: Colors.red.withOpacity(0.1),
                       ),
                       child: Center(
                         child: Container(
@@ -90,7 +190,7 @@ class HeartbeatPage extends StatelessWidget {
                           height: 120,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.red.withOpacity(0.3),
+                            color: Colors.red.withOpacity(0.15),
                           ),
                           child: Center(
                             child: Column(
@@ -98,34 +198,31 @@ class HeartbeatPage extends StatelessWidget {
                               children: [
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.baseline,
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
                                   textBaseline: TextBaseline.alphabetic,
-                                  children: const [
+                                  children: [
                                     Text(
-                                      '128',
-                                      style: TextStyle(
+                                      '$latestHeartRate',
+                                      style: const TextStyle(
                                         fontSize: 32,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.red,
                                       ),
                                     ),
-                                    SizedBox(width: 5),
-                                    Text(
+                                    const SizedBox(width: 5),
+                                    const Text(
                                       'BPM',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.red,
-                                      ),
+                                      style: TextStyle(fontSize: 14, color: Colors.red),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 5),
-                                const Text(
-                                  'Normal',
+                                Text(
+                                  status,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.green,
+                                    color: statusColor,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
@@ -141,7 +238,6 @@ class HeartbeatPage extends StatelessWidget {
 
             const SizedBox(height: 15),
 
-            // Heart Rate Trend Line
             SizedBox(
               height: 40,
               child: LineChart(
@@ -150,32 +246,24 @@ class HeartbeatPage extends StatelessWidget {
                   titlesData: const FlTitlesData(show: false),
                   borderData: FlBorderData(show: false),
                   minX: 0,
-                  maxX: 10,
-                  minY: 120,
-                  maxY: 140,
+                  maxX: (spots.length - 1).toDouble(),
+                  minY: 90,
+                  maxY: 170,
                   lineBarsData: [
                     LineChartBarData(
-                      spots: const [
-                        FlSpot(0, 125),
-                        FlSpot(2, 130),
-                        FlSpot(4, 128),
-                        FlSpot(6, 132),
-                        FlSpot(8, 128),
-                        FlSpot(10, 125),
-                      ],
+                      spots: spots,
                       isCurved: true,
                       color: Colors.red,
-                      barWidth: 2,
+                      barWidth: 2.5,
                       dotData: const FlDotData(show: false),
                     ),
                   ],
                 ),
               ),
             ),
-
             const SizedBox(height: 10),
             Text(
-              'Last 10 minutes trend',
+              'Last readings trend',
               style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
@@ -184,7 +272,8 @@ class HeartbeatPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSparklineCharts(BuildContext context) {
+  Widget _buildSparklineCharts(
+      BuildContext context, List<int> morning, List<int> afternoon, List<int> evening, List<int> night) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -194,23 +283,16 @@ class HeartbeatPage extends StatelessWidget {
           children: [
             const Text(
               'Heart Rate Patterns',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildMiniSparkline(
-                    'Morning', [120, 125, 128, 130, 125], Colors.blue),
-                _buildMiniSparkline(
-                    'Afternoon', [130, 135, 132, 128, 130], Colors.orange),
-                _buildMiniSparkline(
-                    'Evening', [125, 128, 130, 132, 128], Colors.purple),
-                _buildMiniSparkline(
-                    'Night', [120, 118, 115, 118, 120], Colors.indigo),
+                _buildMiniSparkline('Morning', morning, Colors.blue),
+                _buildMiniSparkline('Afternoon', afternoon, Colors.orange),
+                _buildMiniSparkline('Evening', evening, Colors.purple),
+                _buildMiniSparkline('Night', night, Colors.indigo),
               ],
             ),
           ],
@@ -232,14 +314,13 @@ class HeartbeatPage extends StatelessWidget {
               borderData: FlBorderData(show: false),
               minX: 0,
               maxX: data.length.toDouble() - 1,
-              minY: data.reduce((a, b) => a < b ? a : b).toDouble() - 5,
-              maxY: data.reduce((a, b) => a > b ? a : b).toDouble() + 5,
+              minY: (data.reduce((a, b) => a < b ? a : b) - 5).toDouble(),
+              maxY: (data.reduce((a, b) => a > b ? a : b) + 5).toDouble(),
               lineBarsData: [
                 LineChartBarData(
                   spots: List.generate(
                       data.length,
-                      (index) =>
-                          FlSpot(index.toDouble(), data[index].toDouble())),
+                      (index) => FlSpot(index.toDouble(), data[index].toDouble())),
                   isCurved: true,
                   color: color,
                   barWidth: 1.5,
@@ -250,61 +331,46 @@ class HeartbeatPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 5),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12)),
         Text(
           '${data.last} BPM',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
         ),
       ],
     );
   }
 
-  Widget _buildHeartRateDistribution(BuildContext context) {
-    final List<double> hrData = [
-      120,
-      125,
-      130,
-      135,
-      128,
-      132,
-      125,
-      130,
-      128,
-      122
-    ];
+  Widget _buildHeartRateDistribution(BuildContext context, List<int> heartRates) {
     final Map<int, int> frequency = {};
-
-    for (var hr in hrData) {
-      int rounded = (hr ~/ 5) * 5; // Group by 5 BPM intervals
+    for (var hr in heartRates) {
+      int rounded = (hr ~/ 10) * 10;
       frequency[rounded] = (frequency[rounded] ?? 0) + 1;
     }
 
     final List<BarChartGroupData> barGroups = [];
-    int x = 0;
-
-    frequency.forEach((hrValue, count) {
+    final keys = frequency.keys.toList()..sort();
+    
+    for (int i = 0; i < keys.length; i++) {
+      int hrValue = keys[i];
+      int count = frequency[hrValue]!;
       barGroups.add(
         BarChartGroupData(
-          x: x,
+          x: i,
           barRods: [
             BarChartRodData(
               toY: count.toDouble(),
               color: _getHRColor(hrValue.toDouble()),
-              width: 12,
-              borderRadius: BorderRadius.circular(2),
+              width: 16,
+              borderRadius: BorderRadius.circular(3),
             ),
           ],
         ),
       );
-      x++;
-    });
+    }
+
+    if (barGroups.isEmpty) {
+      barGroups.add(BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 1, color: Colors.green, width: 16)]));
+    }
 
     return Card(
       elevation: 3,
@@ -315,42 +381,27 @@ class HeartbeatPage extends StatelessWidget {
           children: [
             const Text(
               'Heart Rate Distribution',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             SizedBox(
               height: 150,
               child: BarChart(
                 BarChartData(
-                  barTouchData: BarTouchData(
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final hrValue = frequency.keys.toList()[groupIndex];
-                        return BarTooltipItem(
-                          '${frequency[hrValue]} times\nat ${hrValue}-${hrValue + 4} BPM',
-                          const TextStyle(color: Colors.white),
-                        );
-                      },
-                    ),
-                  ),
                   titlesData: FlTitlesData(
                     show: true,
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
-                          final hrValues = frequency.keys.toList();
-                          final hrValue = hrValues[value.toInt()];
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 4.0),
-                            child: Text(
-                              '$hrValue',
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          );
+                          int idx = value.toInt();
+                          if (idx >= 0 && idx < keys.length) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text('${keys[idx]}', style: const TextStyle(fontSize: 10)),
+                            );
+                          }
+                          return const SizedBox();
                         },
                         reservedSize: 20,
                       ),
@@ -359,14 +410,13 @@ class HeartbeatPage extends StatelessWidget {
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
-                          return Text(
-                            value.toInt().toString(),
-                            style: const TextStyle(fontSize: 10),
-                          );
+                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10));
                         },
-                        reservedSize: 30,
+                        reservedSize: 20,
                       ),
                     ),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
                   borderData: FlBorderData(
                     show: true,
@@ -374,18 +424,9 @@ class HeartbeatPage extends StatelessWidget {
                   ),
                   barGroups: barGroups,
                   gridData: const FlGridData(show: true),
-                  alignment: BarChartAlignment.spaceBetween,
-                  maxY: frequency.values
-                          .reduce((a, b) => a > b ? a : b)
-                          .toDouble() +
-                      1,
+                  alignment: BarChartAlignment.spaceAround,
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Shows frequency of heart rate readings at different levels',
-              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -393,40 +434,28 @@ class HeartbeatPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeartRateZones(BuildContext context) {
+  Widget _buildHeartRateZones(BuildContext context, double normal, double elevated, double high) {
     final List<PieChartSectionData> pieSections = [
       PieChartSectionData(
         color: Colors.green,
-        value: 70,
-        title: '70%',
+        value: normal,
+        title: '${normal.toStringAsFixed(0)}%',
         radius: 50,
-        titleStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
+        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
       ),
       PieChartSectionData(
         color: Colors.orange,
-        value: 20,
-        title: '20%',
+        value: elevated,
+        title: '${elevated.toStringAsFixed(0)}%',
         radius: 50,
-        titleStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
+        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
       ),
       PieChartSectionData(
         color: Colors.red,
-        value: 10,
-        title: '10%',
+        value: high,
+        title: '${high.toStringAsFixed(0)}%',
         radius: 50,
-        titleStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
+        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
       ),
     ];
 
@@ -439,39 +468,30 @@ class HeartbeatPage extends StatelessWidget {
           children: [
             const Text(
               'Heart Rate Zones',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             Row(
               children: [
-                // Pie Chart
                 SizedBox(
-                  width: 150,
-                  height: 150,
+                  width: 140,
+                  height: 140,
                   child: PieChart(
                     PieChartData(
                       sections: pieSections,
-                      centerSpaceRadius: 30,
+                      centerSpaceRadius: 25,
                       sectionsSpace: 2,
                     ),
                   ),
                 ),
-
                 const SizedBox(width: 20),
-
-                // Zone Legend
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildZoneLegend(
-                          context, 'Normal Zone', '110-140 BPM', Colors.green, 70),
-                      _buildZoneLegend(
-                          context, 'Elevated Zone', '140-150 BPM', Colors.orange, 20),
-                      _buildZoneLegend(context, 'High Zone', '150+ BPM', Colors.red, 10),
+                      _buildZoneLegend(context, 'Normal Zone', '110-140 BPM', Colors.green, normal.round()),
+                      _buildZoneLegend(context, 'Elevated Zone', '140-150 BPM', Colors.orange, elevated.round()),
+                      _buildZoneLegend(context, 'High Zone', '150+ BPM', Colors.red, high.round()),
                     ],
                   ),
                 ),
@@ -486,44 +506,30 @@ class HeartbeatPage extends StatelessWidget {
   Widget _buildZoneLegend(
       BuildContext context, String label, String range, Color color, int percentage) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         children: [
-          Container(
-            width: 12,
-            height: 12,
-            color: color,
-          ),
-          const SizedBox(width: 10),
+          Container(width: 10, height: 10, color: color),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(fontSize: 14),
-                ),
-                Text(
-                  range,
-                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
+                Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                Text(range, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
           Text(
             '$percentage%',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailedStats(BuildContext context) {
+  Widget _buildDetailedStats(BuildContext context, int minHR, int maxHR, int avgHR) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -533,13 +539,9 @@ class HeartbeatPage extends StatelessWidget {
           children: [
             const Text(
               'Detailed Statistics',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
-
             Table(
               columnWidths: const {
                 0: FlexColumnWidth(1.5),
@@ -548,57 +550,10 @@ class HeartbeatPage extends StatelessWidget {
               },
               children: [
                 _buildTableRow('Metric', 'Value', const Text('Status')),
-                _buildTableRow('Average HR', '128 BPM',
-                    _buildStatusBadge('Normal', Colors.green)),
-                _buildTableRow('Maximum HR', '142 BPM',
-                    _buildStatusBadge('High', Colors.orange)),
-                _buildTableRow('Minimum HR', '115 BPM',
-                    _buildStatusBadge('Normal', Colors.green)),
-                _buildTableRow('Variability', '12 BPM',
-                    _buildStatusBadge('Good', Colors.blue)),
-                _buildTableRow('Resting HR', '120 BPM',
-                    _buildStatusBadge('Normal', Colors.green)),
+                _buildTableRow('Average HR', '$avgHR BPM', _buildStatusBadge('Normal', Colors.green)),
+                _buildTableRow('Maximum HR', '$maxHR BPM', _buildStatusBadge(maxHR > 150 ? 'High' : 'Normal', maxHR > 150 ? Colors.red : Colors.green)),
+                _buildTableRow('Minimum HR', '$minHR BPM', _buildStatusBadge('Normal', Colors.green)),
               ],
-            ),
-
-            const SizedBox(height: 15),
-
-            // Resting Heart Rate Trend
-            const Text(
-              'Resting Heart Rate Trend:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 40,
-              child: LineChart(
-                LineChartData(
-                  gridData: const FlGridData(show: false),
-                  titlesData: const FlTitlesData(show: false),
-                  borderData: FlBorderData(show: false),
-                  minX: 0,
-                  maxX: 6,
-                  minY: 115,
-                  maxY: 125,
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: const [
-                        FlSpot(0, 122),
-                        FlSpot(1, 120),
-                        FlSpot(2, 118),
-                        FlSpot(3, 120),
-                        FlSpot(4, 121),
-                        FlSpot(5, 119),
-                        FlSpot(6, 120),
-                      ],
-                      isCurved: true,
-                      color: Colors.blue,
-                      barWidth: 2,
-                      dotData: const FlDotData(show: true),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
@@ -615,10 +570,7 @@ class HeartbeatPage extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -637,19 +589,15 @@ class HeartbeatPage extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 12,
-          color: color,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold),
       ),
     );
   }
 
   Color _getHRColor(double hr) {
     if (hr < 110) return Colors.blue;
-    if (hr >= 110 && hr <= 140) return Colors.green;
-    if (hr > 140 && hr <= 150) return Colors.orange;
+    if (hr <= 140) return Colors.green;
+    if (hr <= 150) return Colors.orange;
     return Colors.red;
   }
 }

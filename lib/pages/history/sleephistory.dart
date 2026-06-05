@@ -1,38 +1,160 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SleepPage extends StatelessWidget {
   const SleepPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text("Not authenticated")),
+      );
+    }
+
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Sleep Summary
-            _buildSleepSummary(context),
-            const SizedBox(height: 20),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('sleep_history')
+            .orderBy('date', descending: true)
+            .limit(7)
+            .snapshots(),
+        builder: (context, snapshot) {
+          String totalDurationText = '8h 24m';
+          int sleepQuality = 82;
+          String bedTimeStr = '9:45 PM';
+          String wakeTimeStr = '6:15 AM';
+          
+          List<FlSpot> sleepPattern = [];
+          Map<String, Map<String, dynamic>> stages = {
+            'Deep Sleep': {'duration': '3h 45m', 'percentage': 45, 'color': Colors.indigo},
+            'Light Sleep': {'duration': '3h 15m', 'percentage': 39, 'color': Colors.blue},
+            'REM Sleep': {'duration': '1h 24m', 'percentage': 16, 'color': Colors.purple},
+          };
 
-            // Sleep Chart
-            _buildSleepChart(context),
-            const SizedBox(height: 20),
+          double avgSleepVal = 8.2;
 
-            // Sleep Stages
-            _buildSleepStages(context),
-            const SizedBox(height: 20),
+          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+            final docs = snapshot.data!.docs;
+            final latestDoc = docs.first.data() as Map<String, dynamic>;
 
-            // Sleep Statistics
-            _buildSleepStats(context),
-          ],
-        ),
+            // Parse duration
+            final totalMinutes = (latestDoc['totalDurationMinutes'] as num?)?.toInt() ?? 504;
+            totalDurationText = '${totalMinutes ~/ 60}h ${totalMinutes % 60}m';
+
+            // Sleep Quality
+            sleepQuality = (latestDoc['sleepQuality'] as num?)?.toInt() ?? 82;
+
+            // Bed and Wake time
+            final bedTimeTS = latestDoc['bedTime'] as Timestamp?;
+            final wakeTimeTS = latestDoc['wakeTime'] as Timestamp?;
+            if (bedTimeTS != null) {
+              final bt = bedTimeTS.toDate();
+              bedTimeStr = '${bt.hour > 12 ? bt.hour - 12 : (bt.hour == 0 ? 12 : bt.hour)}:${bt.minute.toString().padLeft(2, '0')} ${bt.hour >= 12 ? 'PM' : 'AM'}';
+            }
+            if (wakeTimeTS != null) {
+              final wt = wakeTimeTS.toDate();
+              wakeTimeStr = '${wt.hour > 12 ? wt.hour - 12 : (wt.hour == 0 ? 12 : wt.hour)}:${wt.minute.toString().padLeft(2, '0')} ${wt.hour >= 12 ? 'PM' : 'AM'}';
+            }
+
+            // Stages
+            final stageData = latestDoc['stages'] as Map<String, dynamic>?;
+            if (stageData != null) {
+              final deep = (stageData['deepMinutes'] as num?)?.toInt() ?? 180;
+              final light = (stageData['lightMinutes'] as num?)?.toInt() ?? 220;
+              final rem = (stageData['remMinutes'] as num?)?.toInt() ?? 80;
+              final totalMins = deep + light + rem;
+              
+              if (totalMins > 0) {
+                stages = {
+                  'Deep Sleep': {
+                    'duration': '${deep ~/ 60}h ${deep % 60}m',
+                    'percentage': ((deep / totalMins) * 100).round(),
+                    'color': Colors.indigo
+                  },
+                  'Light Sleep': {
+                    'duration': '${light ~/ 60}h ${light % 60}m',
+                    'percentage': ((light / totalMins) * 100).round(),
+                    'color': Colors.blue
+                  },
+                  'REM Sleep': {
+                    'duration': '${rem ~/ 60}h ${rem % 60}m',
+                    'percentage': ((rem / totalMins) * 100).round(),
+                    'color': Colors.purple
+                  },
+                };
+              }
+            }
+
+            // Pattern line chart spots
+            final patternList = latestDoc['pattern'] as List<dynamic>?;
+            if (patternList != null) {
+              for (int idx = 0; idx < patternList.length; idx++) {
+                final item = patternList[idx] as Map<String, dynamic>;
+                final depth = (item['depth'] as num?)?.toDouble() ?? 50.0;
+                sleepPattern.add(FlSpot(idx.toDouble(), depth));
+              }
+            }
+
+            // Average Sleep over the week
+            double sumDuration = 0;
+            for (var doc in docs) {
+              final d = doc.data() as Map<String, dynamic>;
+              sumDuration += (d['totalDurationMinutes'] as num?)?.toDouble() ?? 500;
+            }
+            avgSleepVal = (sumDuration / docs.length) / 60.0;
+          }
+
+          // Fallbacks if list is empty
+          if (sleepPattern.isEmpty) {
+            sleepPattern = [
+              const FlSpot(0, 0),   // Awake
+              const FlSpot(1, 10),  // Light
+              const FlSpot(2, 85),  // Deep
+              const FlSpot(3, 90),  // Deep
+              const FlSpot(4, 50),  // Light
+              const FlSpot(5, 75),  // REM
+              const FlSpot(6, 0),   // Awake
+            ];
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSleepSummary(context, totalDurationText, sleepQuality),
+                const SizedBox(height: 20),
+                _buildSleepChart(context, sleepPattern),
+                const SizedBox(height: 20),
+                _buildSleepStages(context, stages),
+                const SizedBox(height: 20),
+                _buildSleepStats(context, avgSleepVal, bedTimeStr, wakeTimeStr, sleepQuality),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildSleepSummary(BuildContext context) {
+  Widget _buildSleepSummary(BuildContext context, String durationText, int quality) {
+    String qualityText = 'Normal';
+    Color qualityColor = Colors.green;
+    if (quality >= 85) {
+      qualityText = 'Excellent Sleep';
+    } else if (quality >= 70) {
+      qualityText = 'Good Sleep Quality';
+    } else {
+      qualityText = 'Restless Sleep';
+      qualityColor = Colors.orange;
+    }
+
     return Card(
       elevation: 3,
       child: Padding(
@@ -45,29 +167,21 @@ class SleepPage extends StatelessWidget {
               children: [
                 Text(
                   'Last Night\'s Sleep',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 5),
-                const Text(
-                  '8h 24m',
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
-                  ),
+                Text(
+                  durationText,
+                  style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.indigo),
                 ),
                 const SizedBox(height: 5),
                 Row(
                   children: [
-                    Icon(Icons.check_circle,
-                        color: Colors.green[400], size: 16),
+                    Icon(Icons.check_circle, color: qualityColor, size: 16),
                     const SizedBox(width: 5),
-                    const Text(
-                      'Good Sleep Quality',
-                      style: TextStyle(color: Colors.green),
+                    Text(
+                      qualityText,
+                      style: TextStyle(color: qualityColor, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -76,15 +190,10 @@ class SleepPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                // ignore: deprecated_member_use
                 color: Colors.indigo.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.nights_stay,
-                color: Colors.indigo,
-                size: 40,
-              ),
+              child: const Icon(Icons.nights_stay, color: Colors.indigo, size: 40),
             ),
           ],
         ),
@@ -92,21 +201,7 @@ class SleepPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSleepChart(BuildContext context) {
-    final List<FlSpot> sleepData = [
-      const FlSpot(0, 0), // 9PM
-      const FlSpot(1, 10), // 10PM
-      const FlSpot(2, 85), // 11PM (Deep Sleep)
-      const FlSpot(3, 90), // 12AM (Deep Sleep)
-      const FlSpot(4, 95), // 1AM (Deep Sleep)
-      const FlSpot(5, 60), // 2AM (Light Sleep)
-      const FlSpot(6, 40), // 3AM (Light Sleep)
-      const FlSpot(7, 80), // 4AM (Deep Sleep)
-      const FlSpot(8, 70), // 5AM (REM)
-      const FlSpot(9, 30), // 6AM (Light Sleep)
-      const FlSpot(10, 0), // 7AM (Awake)
-    ];
-
+  Widget _buildSleepChart(BuildContext context, List<FlSpot> sleepData) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -116,10 +211,7 @@ class SleepPage extends StatelessWidget {
           children: [
             const Text(
               'Sleep Pattern',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -143,43 +235,39 @@ class SleepPage extends StatelessWidget {
                         showTitles: true,
                         reservedSize: 30,
                         getTitlesWidget: (value, meta) {
-                          List<String> times = [
-                            '9PM',
-                            '11PM',
-                            '1AM',
-                            '3AM',
-                            '5AM',
-                            '7AM'
-                          ];
-                          int index = value.toInt();
-                          return index >= 0 && index < times.length
-                              ? Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(times[index]),
-                                )
-                              : const SizedBox();
+                          // Return dynamic labels based on index
+                          int idx = value.toInt();
+                          if (idx % 2 == 0) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text('T+$idx h', style: const TextStyle(fontSize: 10)),
+                            );
+                          }
+                          return const SizedBox();
                         },
                       ),
                     ),
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 40,
+                        reservedSize: 50,
                         getTitlesWidget: (value, meta) {
-                          if (value == 0) return const Text('Awake');
-                          if (value == 50) return const Text('Light');
-                          if (value == 100) return const Text('Deep');
+                          if (value == 0) return const Text('Awake', style: TextStyle(fontSize: 10));
+                          if (value == 50) return const Text('Light', style: TextStyle(fontSize: 10));
+                          if (value == 100) return const Text('Deep', style: TextStyle(fontSize: 10));
                           return const SizedBox();
                         },
                       ),
                     ),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
                   borderData: FlBorderData(
                     show: true,
                     border: Border.all(color: Theme.of(context).dividerColor),
                   ),
                   minX: 0,
-                  maxX: 10,
+                  maxX: (sleepData.length - 1).toDouble(),
                   minY: 0,
                   maxY: 100,
                   lineBarsData: [
@@ -193,9 +281,7 @@ class SleepPage extends StatelessWidget {
                         show: true,
                         gradient: LinearGradient(
                           colors: [
-                            // ignore: deprecated_member_use
                             Colors.indigo.withOpacity(0.3),
-                            // ignore: deprecated_member_use
                             Colors.indigo.withOpacity(0.1),
                           ],
                         ),
@@ -210,8 +296,8 @@ class SleepPage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Sleep Depth', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                Text('Time', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                Text('Sleep Depth', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
+                Text('Duration', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
               ],
             ),
           ],
@@ -220,25 +306,7 @@ class SleepPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSleepStages(BuildContext context) {
-    final Map<String, Map<String, dynamic>> stages = {
-      'Deep Sleep': {
-        'duration': '3h 45m',
-        'percentage': 45,
-        'color': Colors.indigo
-      },
-      'Light Sleep': {
-        'duration': '3h 15m',
-        'percentage': 39,
-        'color': Colors.blue
-      },
-      'REM Sleep': {
-        'duration': '1h 24m',
-        'percentage': 16,
-        'color': Colors.purple
-      },
-    };
-
+  Widget _buildSleepStages(BuildContext context, Map<String, Map<String, dynamic>> stages) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -248,10 +316,7 @@ class SleepPage extends StatelessWidget {
           children: [
             const Text(
               'Sleep Stages',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             Column(
@@ -274,11 +339,10 @@ class SleepPage extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Text(entry.key),
+                              Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w500)),
                             ],
                           ),
-                          Text(
-                              '${entry.value['duration']} (${entry.value['percentage']}%)'),
+                          Text('${entry.value['duration']} (${entry.value['percentage']}%)'),
                         ],
                       ),
                       const SizedBox(height: 5),
@@ -300,7 +364,8 @@ class SleepPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSleepStats(BuildContext context) {
+  Widget _buildSleepStats(
+      BuildContext context, double avgSleep, String bedTime, String wakeTime, int quality) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -310,33 +375,27 @@ class SleepPage extends StatelessWidget {
           children: [
             const Text(
               'Weekly Sleep Statistics',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildStatItem(
-                    context, 'Avg Sleep', '8.2h', Icons.nights_stay, Colors.indigo),
-                _buildStatItem(
-                    context, 'Bed Time', '9:45 PM', Icons.schedule, Colors.blue),
-                _buildStatItem(
-                    context, 'Wake Time', '6:15 AM', Icons.wb_sunny, Colors.orange),
+                _buildStatItem(context, 'Avg Sleep', '${avgSleep.toStringAsFixed(1)}h', Icons.nights_stay, Colors.indigo),
+                _buildStatItem(context, 'Bed Time', bedTime, Icons.schedule, Colors.blue),
+                _buildStatItem(context, 'Wake Time', wakeTime, Icons.wb_sunny, Colors.orange),
               ],
             ),
             const SizedBox(height: 15),
             const Divider(),
             const SizedBox(height: 10),
-            const Text(
-              'Sleep Quality: 82/100',
-              style: TextStyle(color: Colors.green),
+            Text(
+              'Sleep Quality: $quality/100',
+              style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 5),
             LinearProgressIndicator(
-              value: 0.82,
+              value: quality / 100.0,
               backgroundColor: Theme.of(context).dividerColor,
               color: Colors.green,
               minHeight: 8,
@@ -355,7 +414,6 @@ class SleepPage extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            // ignore: deprecated_member_use
             color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -364,15 +422,11 @@ class SleepPage extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
         ),
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
     );

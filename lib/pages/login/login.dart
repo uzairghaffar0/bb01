@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -74,9 +75,7 @@ class _LoginPageState extends State<LoginPage>
       SnackBar(
         content: Text(
           message,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
@@ -86,6 +85,20 @@ class _LoginPageState extends State<LoginPage>
         ),
       ),
     );
+  }
+
+  Future<void> _saveFcmToken(String userId) async {
+    try {
+      String? token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .set({'fcmToken': token}, SetOptions(merge: true));
+      }
+    } catch (e) {
+      print('Failed to save FCM token: $e');
+    }
   }
 
   Future<void> loginUser() async {
@@ -110,14 +123,16 @@ class _LoginPageState extends State<LoginPage>
       }
     }
 
-    setState(() => isLoading = true);
+    setState(() { isLoading = true; });
 
     try {
       if (isLoginMode) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
+        UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
+
+        await _saveFcmToken(userCredential.user!.uid);
 
         _showSnack('Login Successful', Colors.green);
 
@@ -130,6 +145,11 @@ class _LoginPageState extends State<LoginPage>
           password: passwordController.text.trim(),
         );
 
+        String? token;
+        try {
+          token = await FirebaseMessaging.instance.getToken();
+        } catch (_) {}
+
         await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredential.user!.uid)
@@ -138,6 +158,7 @@ class _LoginPageState extends State<LoginPage>
           'babyName': babyNameController.text.trim(),
           'email': emailController.text.trim(),
           'createdAt': Timestamp.now(),
+          if (token != null) 'fcmToken': token,
         });
 
         _showSnack('Account Created Successfully', Colors.green);
@@ -155,7 +176,7 @@ class _LoginPageState extends State<LoginPage>
       _showSnack(e.toString(), Colors.red);
     } finally {
       if (mounted) {
-        setState(() => isLoading = false);
+        setState(() { isLoading = false; });
       }
     }
   }
@@ -203,7 +224,7 @@ class _LoginPageState extends State<LoginPage>
               color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                  color: Theme.of(context).primaryColor.withOpacity(0.2),
                   blurRadius: 30,
                   spreadRadius: 5,
                 )
@@ -242,13 +263,13 @@ class _LoginPageState extends State<LoginPage>
     return Container(
       padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor.withValues(alpha: 0.9),
+        color: Theme.of(context).cardColor.withOpacity(0.9),
         borderRadius: BorderRadius.circular(30),
         border: Border.all(
-            color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+            color: Theme.of(context).dividerColor.withOpacity(0.1)),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).shadowColor.withValues(alpha: 0.05),
+            color: Theme.of(context).shadowColor.withOpacity(0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           )
@@ -346,7 +367,7 @@ class _LoginPageState extends State<LoginPage>
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
           borderSide: BorderSide(
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.2)),
+            color: Theme.of(context).dividerColor.withOpacity(0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),

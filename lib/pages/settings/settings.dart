@@ -35,11 +35,50 @@ class _SettingsPageState extends State<SettingsPage> {
           .doc(user.uid)
           .get();
 
-      setState(() {
-        userName = doc['name'];
-        userEmail = doc['email'];
-        babyName = doc['babyName'];
-      });
+      if (doc.exists) {
+        setState(() {
+          userName = doc.data()?['name'] ?? 'User';
+          userEmail = doc.data()?['email'] ?? '';
+          babyName = doc.data()?['babyName'] ?? '';
+
+          final settings = doc.data()?['settings'] as Map<String, dynamic>?;
+          if (settings != null) {
+            _notifications = settings['pushNotifications'] ?? _notifications;
+            _vibration = settings['vibrationAlerts'] ?? _vibration;
+            _autoSync = settings['autoSync'] ?? _autoSync;
+            _babyDataSharing = settings['shareBabyData'] ?? _babyDataSharing;
+            _temperatureUnit = settings['temperatureUnit'] ?? _temperatureUnit;
+            _distanceUnit = settings['distanceUnit'] ?? _distanceUnit;
+            _selectedLanguage = settings['language'] ?? _selectedLanguage;
+            _alertVolume = (settings['alertVolume'] as num?)?.toDouble() ?? _alertVolume;
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _updateFirestoreSettings() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set({
+          'settings': {
+            'pushNotifications': _notifications,
+            'vibrationAlerts': _vibration,
+            'autoSync': _autoSync,
+            'shareBabyData': _babyDataSharing,
+            'temperatureUnit': _temperatureUnit,
+            'distanceUnit': _distanceUnit,
+            'language': _selectedLanguage,
+            'alertVolume': _alertVolume,
+          }
+        }, SetOptions(merge: true));
+      } catch (e) {
+        print('Error updating settings: $e');
+      }
     }
   }
 
@@ -76,6 +115,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     _notifications = value;
                   });
+                  _updateFirestoreSettings();
                 },
                 activeThumbColor: const Color(0xFF3BB9FF),
               ),
@@ -93,6 +133,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     setState(() {
                       _alertVolume = value;
                     });
+                    _updateFirestoreSettings();
                   },
                   min: 0.0,
                   max: 1.0,
@@ -111,6 +152,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     _vibration = value;
                   });
+                  _updateFirestoreSettings();
                 },
                 activeThumbColor: const Color(0xFF3BB9FF),
               ),
@@ -131,6 +173,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     _autoSync = value;
                   });
+                  _updateFirestoreSettings();
                 },
                 activeThumbColor: const Color(0xFF3BB9FF),
               ),
@@ -146,6 +189,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     _babyDataSharing = value;
                   });
+                  _updateFirestoreSettings();
                 },
                 activeThumbColor: const Color(0xFF3BB9FF),
               ),
@@ -161,6 +205,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     _temperatureUnit = newValue!;
                   });
+                  _updateFirestoreSettings();
                 },
                 items: <String>['°C', '°F']
                     .map<DropdownMenuItem<String>>((String value) {
@@ -238,6 +283,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     _selectedLanguage = newValue!;
                   });
+                  _updateFirestoreSettings();
                 },
                 items: <String>['English', 'Spanish', 'French', 'German']
                     .map<DropdownMenuItem<String>>((String value) {
@@ -260,6 +306,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     _distanceUnit = newValue!;
                   });
+                  _updateFirestoreSettings();
                 },
                 items: <String>['km', 'mi']
                     .map<DropdownMenuItem<String>>((String value) {
