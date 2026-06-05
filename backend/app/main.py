@@ -1,3 +1,4 @@
+import asyncio
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -77,7 +78,12 @@ def get_heartrate_status(hr: int) -> str:
     return "High"
 
 async def async_process_telemetry(payload: TelemetryPayload):
-    """Asynchronous worker resolving ML classifications, updating Firestore, and checking alerts."""
+    """Asynchronous worker resolving ML classifications, updating Firestore, and checking alerts.
+    
+    All blocking Firestore/FCM SDK calls are offloaded to a thread pool executor to avoid
+    blocking the uvicorn event loop (which causes request timeouts).
+    """
+    loop = asyncio.get_running_loop()
     user_id = payload.userId
     
     # 1. Resolve Sleep Stages dynamically based on heart rate and sensor telemetry
@@ -93,18 +99,26 @@ async def async_process_telemetry(payload: TelemetryPayload):
         "cryStatus": "Quiet",
     }
     
-    # Write latest to database
-    firebase_service.update_latest_telemetry(user_id, latest_metrics)
+    # Run all blocking Firestore/FCM calls in a thread pool — never block the event loop
+    await loop.run_in_executor(
+        None, firebase_service.update_latest_telemetry, user_id, latest_metrics
+    )
     
     # 3. Log values to aggregate historical statistics
     temp_status = get_temp_status(payload.temperature)
     hr_status = get_heartrate_status(payload.heartRate)
     
-    firebase_service.append_temperature_log(user_id, payload.temperature, temp_status)
-    firebase_service.append_heartrate_log(user_id, payload.heartRate, hr_status)
+    await loop.run_in_executor(
+        None, firebase_service.append_temperature_log, user_id, payload.temperature, temp_status
+    )
+    await loop.run_in_executor(
+        None, firebase_service.append_heartrate_log, user_id, payload.heartRate, hr_status
+    )
     
-    # 4. Trigger alert checks
-    evaluate_and_alert(user_id, payload.heartRate, payload.temperature)
+    # 4. Trigger alert checks (also blocking — run in executor)
+    await loop.run_in_executor(
+        None, evaluate_and_alert, user_id, payload.heartRate, payload.temperature
+    )
 
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
 async def health_check():

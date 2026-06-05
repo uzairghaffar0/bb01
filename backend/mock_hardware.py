@@ -5,7 +5,7 @@ import requests
 # Base configuration
 SERVER_URL = "http://127.0.0.1:8000/api/v1/telemetry"
 # REPLACE this with your actual Firebase User UID (found in Firebase console or printed by your app)
-TEST_USER_ID = "parent_auth_uid_12345" 
+TEST_USER_ID = "Q9YdSQOoUJWU4OYHdeMCPS27Jkk1"
 
 def simulate_baby_band():
     """Simulates real-time sensor loops transmitting from the Smart Baby Band hardware."""

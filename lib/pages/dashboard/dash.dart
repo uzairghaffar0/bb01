@@ -292,6 +292,18 @@ class _DashboardPageState extends State<DashboardPage>
                   color: theme.colorScheme.onSurface,
                 ),
               ),
+              if (FirebaseAuth.instance.currentUser != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Account: ${FirebaseAuth.instance.currentUser!.email}\n(UID: ${FirebaseAuth.instance.currentUser!.uid})',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -337,8 +349,10 @@ class _DashboardPageState extends State<DashboardPage>
                 const SizedBox(height: 15),
 
                 // Row of 4 Health Metrics with live data
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.spaceAround,
                   children: [
                     _healthMetricCard(
                       context,
@@ -822,6 +836,20 @@ class _DashboardPageState extends State<DashboardPage>
             double humidity = 65.0;
             String lastSyncText = 'Waiting for data...';
             bool isLive = false;
+
+            if (snapshot.hasError) {
+              final err = snapshot.error.toString();
+              if (err.contains('permission') || err.contains('PERMISSION_DENIED')) {
+                print('❌ FIRESTORE PERMISSION DENIED: The security rules are blocking reads from users/{uid}/health_metrics/latest. Fix your Firestore rules in Firebase Console.');
+              } else {
+                print('❌ Firestore StreamBuilder Error: $err');
+              }
+            }
+
+            print('StreamBuilder connectionState: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, exists: ${snapshot.hasData ? snapshot.data!.exists : "N/A"}');
+            if (snapshot.hasData && snapshot.data!.exists) {
+              print('StreamBuilder data received: ${snapshot.data!.data()}');
+            }
 
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
