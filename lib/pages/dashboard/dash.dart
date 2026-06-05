@@ -349,42 +349,49 @@ class _DashboardPageState extends State<DashboardPage>
                 const SizedBox(height: 15),
 
                 // Row of 4 Health Metrics with live data
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 16,
-                  alignment: WrapAlignment.spaceAround,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _healthMetricCard(
-                      context,
-                      Icons.thermostat,
-                      'Temp',
-                      '${temp.toStringAsFixed(1)}°C',
-                      _getTempColor(temp),
-                      _getTempColor(temp).withOpacity(0.1),
+                    Expanded(
+                      child: _healthMetricCard(
+                        context,
+                        Icons.thermostat,
+                        'Temp',
+                        '${temp.toStringAsFixed(1)}°C',
+                        _getTempColor(temp),
+                        _getTempColor(temp).withOpacity(0.1),
+                      ),
                     ),
-                    _healthMetricCard(
-                      context,
-                      Icons.bedtime,
-                      'Sleep',
-                      sleep,
-                      _getSleepColor(sleep),
-                      _getSleepColor(sleep).withOpacity(0.1),
+                    Expanded(
+                      child: _healthMetricCard(
+                        context,
+                        Icons.bedtime,
+                        'Sleep',
+                        sleep,
+                        _getSleepColor(sleep),
+                        _getSleepColor(sleep).withOpacity(0.1),
+                      ),
                     ),
-                    _healthMetricCard(
-                      context,
-                      Icons.favorite,
-                      'Heart Rate',
-                      '$heartRate BPM',
-                      _getHeartRateColor(heartRate),
-                      _getHeartRateColor(heartRate).withOpacity(0.1),
+                    Expanded(
+                      child: _healthMetricCard(
+                        context,
+                        Icons.favorite,
+                        'Heart Rate',
+                        '$heartRate BPM',
+                        _getHeartRateColor(heartRate),
+                        _getHeartRateColor(heartRate).withOpacity(0.1),
+                      ),
                     ),
-                    _healthMetricCard(
-                      context,
-                      _getCryIcon(cry),
-                      'Cry',
-                      _getCryDisplayText(cry),
-                      _getCryColor(cry),
-                      _getCryColor(cry).withOpacity(0.1),
+                    Expanded(
+                      child: _healthMetricCard(
+                        context,
+                        _getCryIcon(cry),
+                        'Cry',
+                        _getCryDisplayText(cry),
+                        _getCryColor(cry),
+                        _getCryColor(cry).withOpacity(0.1),
+                      ),
                     ),
                   ],
                 ),

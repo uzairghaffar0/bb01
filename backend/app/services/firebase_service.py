@@ -113,6 +113,24 @@ class FirebaseService:
             logger.info(f"[Mock Mode DB Sync] Appended heartrate_history log for {user_id}: {log_entry}")
             return True
 
+    def append_sleep_log(self, user_id: str, sleep_status: str) -> bool:
+        """Appends sleep classification log to /users/{userId}/sleep_history/."""
+        log_entry = {
+            "timestamp": firestore.SERVER_TIMESTAMP if self.is_live else "MOCK_SERVER_TIMESTAMP",
+            "status": sleep_status
+        }
+        
+        if self.is_live and self.db:
+            try:
+                self.db.collection("users").document(user_id).collection("sleep_history").add(log_entry)
+                return True
+            except Exception as e:
+                logger.error(f"Failed to log sleep history to Firestore: {e}")
+                return False
+        else:
+            logger.info(f"[Mock Mode DB Sync] Appended sleep_history log for {user_id}: {log_entry}")
+            return True
+
     def append_cry_event(self, user_id: str, reason: str, duration_seconds: int, intensity: int) -> bool:
         """Logs a classified cry event under /users/{userId}/cries/."""
         log_entry = {

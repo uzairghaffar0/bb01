@@ -5,7 +5,7 @@ import requests
 # Base configuration
 SERVER_URL = "http://127.0.0.1:8000/api/v1/telemetry"
 # REPLACE this with your actual Firebase User UID (found in Firebase console or printed by your app)
-TEST_USER_ID = "Q9YdSQOoUJWU4OYHdeMCPS27Jkk1"
+TEST_USER_ID = "Q9YdSQ0oUJWU40YHdeMCPS27Jkk1"
 
 def simulate_baby_band():
     """Simulates real-time sensor loops transmitting from the Smart Baby Band hardware."""
@@ -46,12 +46,18 @@ def simulate_baby_band():
                   f"Room Temp: {payload['roomTemperature']}°C | Humidity: {payload['humidity']}%")
 
             # 3. Transmit packet to FastAPI Backend via HTTP POST
-            response = requests.post(SERVER_URL, json=payload, timeout=3)
+            response = requests.post(SERVER_URL, json=payload, timeout=10)
             
             if response.status_code == 202:
                 print("  -> Transmission accepted by backend.")
             else:
                 print(f"  -> Transmission warning! Server returned status: {response.status_code}")
+
+            # 4. Randomly trigger a simulated cry event (10% chance)
+            if random.random() < 0.10:
+                print(f"[{time.strftime('%H:%M:%S')}] 🚨 Simulating a Baby Cry Event...")
+                cry_url = SERVER_URL.replace("/telemetry", "/cry-test")
+                requests.post(f"{cry_url}?userId={TEST_USER_ID}", timeout=10)
 
         except requests.exceptions.ConnectionError:
             print("  -> ERROR: Connection failed! Make sure your FastAPI backend is running (uvicorn app.main:app).")

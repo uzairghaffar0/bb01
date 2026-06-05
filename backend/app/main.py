@@ -114,6 +114,9 @@ async def async_process_telemetry(payload: TelemetryPayload):
     await loop.run_in_executor(
         None, firebase_service.append_heartrate_log, user_id, payload.heartRate, hr_status
     )
+    await loop.run_in_executor(
+        None, firebase_service.append_sleep_log, user_id, sleep_analytics["sleepStatus"]
+    )
     
     # 4. Trigger alert checks (also blocking — run in executor)
     await loop.run_in_executor(
